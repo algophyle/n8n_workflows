@@ -1,0 +1,141 @@
+{
+  "name": "Price_Tracker",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://api.scraperapi.com/?api_key=<SCRAPER_API_KEY>&url=https://www.amazon.in/Apple-MacBook-13-inch-10-core-Unified/dp/B0DZD8QJBH&render=false",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122 Safari/537.36\",\n  \"Accept-Language\": \"en-US,en;q=0.9\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "c42b4c5e-b57b-4d7d-9b91-23b947b4c121",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [208, 0]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "11b1f18d-5420-42a6-94d7-f1bb7e2b4762",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "price",
+              "cssSelector": "input[name=\"items[0.base][customerVisiblePrice][displayString]\"]",
+              "returnValue": "value"
+            },
+            {
+              "key": "asin",
+              "cssSelector": "input[name=\"items[0.base][asin]\"]",
+              "returnValue": "value"
+            },
+            {
+              "key": "price_amt",
+              "cssSelector": "input[name=\"items[0.base][customerVisiblePrice][amount]\"]",
+              "returnValue": "value"
+            }
+          ]
+        }
+      },
+      "id": "84fdc7f0-502e-46f0-85a4-459bc3cfba06",
+      "name": "HTML Extract",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [416, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const rawPrice = item.json.price_amt;\n  const price = parseFloat(rawPrice);\n  const threshold = 110000; // configurable threshold\n\n  return {\n    json: {\n      price_amt: rawPrice,\n      cleaned_price: price,\n      alert: price < threshold\n    }\n  };\n});"
+      },
+      "id": "6216a31c-2ddf-4cbb-a0dc-1325e2d8a10e",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [624, 0]
+    },
+    {
+      "parameters": {
+        "sendTo": "<YOUR_EMAIL>",
+        "subject": "Price Alert: MacBook",
+        "emailType": "text",
+        "message": "=The current price is ₹{{$json.cleaned_price}}. ASIN: {{$json.asin}}",
+        "options": {}
+      },
+      "id": "8b1fd30c-fc46-45f3-8c8b-0c9fdca9a8bb",
+      "name": "Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [832, 0]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTML Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML Extract": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
